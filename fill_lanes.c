@@ -3,7 +3,7 @@
 #include<stdlib.h>
 #include<stdio.h>
 #include<inttypes.h>
-__declspec(vector(nomask))
+__declspec(vector)
 void compute_f(float dij, float dik, float *fi, float *fj, float *fk) {
     *fi = exp(dik) * cos(dij) * sin(dik) * dij;
     *fj = sin(dij) * exp(dij) * cos(dik) * dik;
@@ -68,10 +68,13 @@ __m128i reduce_land_sse(__m128i b) {
 #endif
 #endif
 
+#ifdef FILL
+    int temp;
+#endif
 __declspec(noinline)
 void fill_lanes(int N, int * iarr, int * jarr, int * marr, int * base, int * offs, float * x, float * f, float rsq) {
 #ifdef FILL
-    int temp;
+    int * tempp = &temp;
 #endif
 #ifdef SIMD
     #pragma simd
@@ -99,6 +102,10 @@ void fill_lanes(int N, int * iarr, int * jarr, int * marr, int * base, int * off
         while (temp) {
   #elif defined(FILL_DIRECT)
         while(reduce_lor(active_mask)) {
+  //#elif defined(FILL_STORE)
+  //      *tempp = 0;
+  //      if (active_mask) *tempp = 1;
+  //      while (*tempp) {
   #else
         while (/*some*/active_mask) {
   #endif
@@ -116,6 +123,10 @@ void fill_lanes(int N, int * iarr, int * jarr, int * marr, int * base, int * off
             if (temp) {
   #elif defined(FILL_DIRECT)
             if (reduce_land(eff_mask || ! active_mask)) {
+  //#elif defined(FILL_STORE)
+  //          *tempp = 1;
+  //          if (eff_mask || ! active_mask) *tempp = 0;
+  //          if (*tempp) {
   #else
             if (/*all*/eff_mask || ! active_mask) {
   #endif
@@ -138,6 +149,9 @@ void fill_lanes(int N, int * iarr, int * jarr, int * marr, int * base, int * off
   #ifdef FILL_TEMP
             memory_assign(&temp, 0);
             memory_reduce_lor(&temp, active_mask);
+  //#elif defined(FILL_STORE)
+  //          *tempp = 0;
+  //          if (active_mask) *tempp = 1;
   #endif
         }
 #else
@@ -166,6 +180,7 @@ void fill_lanes(int N, int * iarr, int * jarr, int * marr, int * base, int * off
 #endif
     }
 }
+#ifdef FILL_INTR_PHI
 __declspec(noinline)
 void fill_lanes_intr(int N, int * iarr, int * jarr, int * marr, int * base, int * offs, float * x, float * f, float rsq) {
     float tmpf[16] __attribute__((aligned(64)));
@@ -228,6 +243,7 @@ void fill_lanes_intr(int N, int * iarr, int * jarr, int * marr, int * base, int 
         }
     }
 }
+#endif
 int main(int argc, char **argv) {
     int N = 10000;
     int M = 16;
@@ -252,13 +268,17 @@ int main(int argc, char **argv) {
     float rsq = 0.25f * M / N;
     rsq *= rsq;
     uint64_t start = __rdtsc();
+#ifdef FILL_INTR_PHI
     fill_lanes_intr(N * M, iarr, jarr, marr, base, offs, x, f, rsq);
+#else
+    fill_lanes(N * M, iarr, jarr, marr, base, offs, x, f, rsq);
+#endif
     uint64_t end = __rdtsc();
-    printf("Time   : %.15e\n", (float) (end - start));
+    printf("%20s: Time   : %.15e\n", argv[0] + 13, (float) (end - start));
     double sum = 0;
     for (int i = 0; i < N; i++) {
         sum += f[i];
     }
-    printf("Correct: %.15e\n", (float)sum);
-    printf("Correct: %.15e\n", (float)f[0]);
+    printf("%20s: Correct: %.15e\n", argv[0] + 13, (float)sum);
+    printf("%20s: Correct: %.15e\n", argv[0] + 13, (float)f[0]);
 }

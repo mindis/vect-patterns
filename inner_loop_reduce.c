@@ -30,6 +30,7 @@ void memory_reduce_add_knc(float *a, __m512 b) {
 }
 #endif
 #endif
+__declspec(noinline)
 void inner_loop_reduce(int N, int * restrict marr, int * restrict base, int * restrict offs, float * restrict x, float * restrict f) {
 //    #pragma omp parallel for
     for (int i = 0; i < N; i++) {
@@ -86,10 +87,10 @@ int main(int argc, char **argv) {
     uint64_t start = __rdtsc();
     inner_loop_reduce(N, marr, base, offs, x, f);
     uint64_t end = __rdtsc();
-    printf("Time   : %.15e\n", (float) (end - start));
+    printf("%21s: Time   : %.15e\n", argv[0] + 20, (float) (end - start));
     double sum = 0;
     for (int i = 0; i < N; i++) {
         sum += f[i];
     }
-    printf("Correct: %.15e\n", (float)sum);
+    printf("%21s: Correct: %.15e\n", argv[0] + 20, (float)sum);
 }
