@@ -12,3 +12,5 @@ Each example consists of a README file, a Makefile and the source code.
 
 Generally speaking, these examples will only work with an up-to-date Intel compiler.
 Their effect is best shown on a Xeon Phi.
+
+This repository has moved to [IXPUG](https://github.com/IXPUG/WG_Vectorization/tree/master/vect-patterns-rwth).
